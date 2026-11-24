@@ -1,0 +1,8 @@
+torch>=2.3
+torchvision>=0.18
+opencv-python>=4.8
+numpy>=1.23
+pyyaml>=6.0
+tqdm>=4.65
+matplotlib>=3.7
+pytest>=7.0

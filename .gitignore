@@ -1,0 +1,21 @@
+# environments
+.venv/
+.kaggle-venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+
+# data, runs and model weights (too large / downloaded separately)
+data/
+runs/
+*.pt
+*.pth
+*.tmp
+*.mp4
+*.avi
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

@@ -1,0 +1,89 @@
+# Real-Time Helmet Detection - default configuration.
+# Any value can be overridden from the command line:  --set train.epochs=50 model.min_size=800
+
+data:
+  root: data/helmet              # dataset folder (see README for layouts)
+  format: voc                    # voc (Pascal VOC .xml) | yolo (.txt)
+  images_dir: images
+  annotations_dir: annotations   # VOC only
+  labels_dir: labels             # YOLO only
+  yolo_names: []                 # YOLO only: class names in YOLO id order, e.g. [With Helmet, Without Helmet]
+  splits_dir: data/splits        # written by prepare_data.py
+  classes: [helmet, no_helmet]   # project classes (labels 1..C; 0 = background)
+  aliases:                       # raw annotation names mapped onto each class (case/_/- insensitive)
+    helmet: [with helmet, helmet, with_helmet, helmet on, rider with helmet]
+    no_helmet: [without helmet, no helmet, without_helmet, no-helmet, head, helmet off, rider without helmet]
+  min_box_size: 2                # drop boxes smaller than this (pixels)
+
+model:
+  # fasterrcnn_mobilenet_v3_large_fpn : fast, real-time on laptop GPU / Apple Silicon
+  # fasterrcnn_resnet50_fpn_v2        : most accurate, slower
+  arch: fasterrcnn_mobilenet_v3_large_fpn
+  pretrained: coco               # coco = transfer learning from a COCO detector | imagenet | none
+  trainable_backbone_layers: 3   # 0 = freeze whole backbone ... 6 (mobilenet) / 5 (resnet) = train all
+  min_size: 640                  # images are resized so the short side is min_size ...
+  max_size: 1066                 # ... and the long side at most max_size
+  box_score_thresh: 0.01         # keep low-confidence boxes so mAP is computed over the full PR curve
+  box_nms_thresh: 0.5
+  box_detections_per_img: 100
+
+train:
+  epochs: 30
+  batch_size: 4
+  num_workers: 2
+  optimizer: sgd                 # sgd | adamw
+  lr: 0.01                       # use ~0.0001 for adamw
+  momentum: 0.9
+  weight_decay: 0.0005
+  warmup_iters: 300
+  min_lr_ratio: 0.01             # cosine decay ends at lr * min_lr_ratio
+  grad_clip: 10.0
+  amp: true                      # mixed precision (CUDA only)
+  balanced_sampling: false       # over-sample images containing the rarer class
+  seed: 42
+  output_dir: runs/exp           # auto-increments: runs/exp, runs/exp2, ...
+  best_metric: map50             # map50 | map50_95 | f1
+  early_stopping_patience: 8     # epochs without improvement (0 disables)
+  eval_conf_threshold: 0.5       # confidence used for precision / recall / F1
+
+augment:
+  enabled: true
+  scale_crop_p: 0.5
+  scale_range: [0.6, 1.0]
+  min_visibility: 0.6
+  hflip_p: 0.5
+  brightness_contrast_p: 0.5     # lighting variation
+  brightness: 0.25
+  contrast: 0.25
+  gamma_p: 0.3                   # night / over-exposure
+  gamma_range: [0.5, 2.2]
+  hsv_p: 0.5
+  occlusion_p: 0.3               # partial occlusion of heads
+  occlusion_per_box_p: 0.5
+  occlusion_fraction: [0.1, 0.35]
+  blur_p: 0.2                    # motion / focus blur
+  noise_p: 0.2                   # sensor noise
+
+inference:
+  conf_threshold: 0.5
+  cross_class_nms_iou: 0.5       # one label per head (helmet OR no_helmet); 1.0 disables
+  violation_class: no_helmet
+  riders:
+    enabled: true                # COCO person-on-motorcycle detection
+    arch: fasterrcnn_mobilenet_v3_large_fpn
+    person_conf: 0.5
+    motorcycle_conf: 0.4
+    min_x_overlap: 0.5           # person/motorcycle horizontal overlap
+    min_bottom_depth: 0.5        # rider's box must reach this far down the motorcycle box
+    min_height_ratio: 0.8        # rider height >= this x motorcycle height (rejects people behind the bike)
+    head_min_containment: 0.5    # fraction of the head box that must lie inside the rider box
+    head_upper_fraction: 0.5     # head centre must be in the top half of the rider box
+  tracking:
+    enabled: true
+    iou_threshold: 0.3
+    max_missed: 15               # frames a rider may disappear (occlusion) before the track ends
+    history: 15                  # frames used to smooth helmet status
+    min_hits_for_violation: 3
+  low_light:
+    enhance: false               # CLAHE enhancement for dark frames
+    brightness_threshold: 60     # mean grey level below which a frame counts as dark
